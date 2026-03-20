@@ -3,43 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Gravity of Stillness</title>
+    <title>* breathe *</title>
     <style>
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #050508; /* Deep midnight */
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #050508;
+            cursor: crosshair;
         }
-
-        canvas {
-            display: block;
-        }
-
+        canvas { display: block; }
         #ui {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: rgba(255, 255, 255, 0.4);
-            letter-spacing: 2px;
-            font-size: 12px;
-            text-transform: uppercase;
-            pointer-events: none;
-            transition: opacity 1s;
-        }
-
-        .fade-out {
-            opacity: 0;
+            position: absolute; bottom: 30px; left: 50%;
+            transform: translateX(-50%); color: rgba(255, 255, 255, 0.3);
+            font-family: 'Inter', system-ui, sans-serif;
+            font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+            pointer-events: none; transition: opacity 1.5s ease;
         }
     </style>
 </head>
 <body>
 
-    <div id="ui">Move to attract • Click to breathe</div>
     <canvas id="canvas"></canvas>
 
     <script>
@@ -48,21 +30,31 @@
         const ui = document.getElementById('ui');
 
         let particles = [];
-        const particleCount = 150;
-        const mouse = { x: -100, y: -100, active: false };
+        const mouse = { x: -1000, y: -1000, active: false };
+        let dpr = window.devicePixelRatio || 1;
 
-        window.addEventListener('resize', resize);
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        function init() {
+            dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            canvas.style.width = window.innerWidth + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+            ctx.scale(dpr, dpr);
+
+            // Dynamic count based on screen size for consistent density
+            const count = Math.floor((window.innerWidth * window.innerHeight) / 6000);
+            particles = [];
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle());
+            }
         }
-        resize();
 
+        window.addEventListener('resize', init);
         window.addEventListener('mousemove', (e) => {
             mouse.x = e.clientX;
             mouse.y = e.clientY;
             mouse.active = true;
-            ui.classList.add('fade-out');
+            ui.style.opacity = 0;
         });
 
         window.addEventListener('mousedown', () => {
@@ -71,87 +63,89 @@
 
         class Particle {
             constructor() {
-                this.init();
+                this.reset();
             }
 
-            init() {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() * canvas.height;
-                this.vx = (Math.random() - 0.5) * 0.5;
-                this.vy = (Math.random() - 0.5) * 0.5;
-                this.radius = Math.random() * 2 + 0.5;
-                this.color = `hsla(${220 + Math.random() * 40}, 70%, 70%, ${Math.random() * 0.5 + 0.2})`;
-                this.originalRadius = this.radius;
+            reset() {
+                this.x = Math.random() * window.innerWidth;
+                this.y = Math.random() * window.innerHeight;
+                this.vx = (Math.random() - 0.5) * 0.4;
+                this.vy = (Math.random() - 0.5) * 0.4;
+                this.radius = Math.random() * 1.5 + 0.5;
+                // Vibrance boost: Deep sky blues and violets
+                this.hue = 210 + Math.random() * 50; 
+                this.opacity = Math.random() * 0.5 + 0.3;
             }
 
             pulse() {
                 const dx = this.x - mouse.x;
                 const dy = this.y - mouse.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                const force = 100 / (dist + 1);
-                this.vx += (dx / dist) * force;
-                this.vy += (dy / dist) * force;
+                if (dist < 400) {
+                    const force = 120 / (dist + 20);
+                    this.vx += (dx / dist) * force;
+                    this.vy += (dy / dist) * force;
+                }
             }
 
             update() {
-                // Gentle drift
                 this.x += this.vx;
                 this.y += this.vy;
 
-                // Interaction with mouse
                 if (mouse.active) {
                     const dx = mouse.x - this.x;
                     const dy = mouse.y - this.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const dist = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (distance < 300) {
-                        const accel = 0.0002;
+                    if (dist < 250) {
+                        const accel = 0.0003;
                         this.vx += dx * accel;
                         this.vy += dy * accel;
                     }
                 }
 
-                // Friction
-                this.vx *= 0.98;
-                this.vy *= 0.98;
+                // Smooth friction
+                this.vx *= 0.97;
+                this.vy *= 0.97;
 
-                // Wrap around edges
-                if (this.x < 0) this.x = canvas.width;
-                if (this.x > canvas.width) this.x = 0;
-                if (this.y < 0) this.y = canvas.height;
-                if (this.y > canvas.height) this.y = 0;
+                // Screen Wrap
+                if (this.x < 0) this.x = window.innerWidth;
+                if (this.x > window.innerWidth) this.x = 0;
+                if (this.y < 0) this.y = window.innerHeight;
+                if (this.y > window.innerHeight) this.y = 0;
             }
 
             draw() {
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = this.color;
+                ctx.fillStyle = `hsla(${this.hue}, 80%, 75%, ${this.opacity})`;
+                
+                // Additive glow for vibrancy
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = `hsla(${this.hue}, 80%, 75%, 0.5)`;
+                
                 ctx.fill();
-            }
-        }
-
-        function setup() {
-            for (let i = 0; i < particleCount; i++) {
-                particles.push(new Particle());
+                ctx.shadowBlur = 0; // Reset for performance
             }
         }
 
         function animate() {
-            // Slight trail effect
-            ctx.fillStyle = 'rgba(5, 5, 8, 0.15)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // REMOVED TRAILING: Use a clean clearRect for sharp movement
+            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+            // Subtle blending to make overlapping stars pop
+            ctx.globalCompositeOperation = 'lighter';
 
             particles.forEach(p => {
                 p.update();
                 p.draw();
             });
 
+            ctx.globalCompositeOperation = 'source-over';
             requestAnimationFrame(animate);
         }
 
-        setup();
+        init();
         animate();
     </script>
 </body>
