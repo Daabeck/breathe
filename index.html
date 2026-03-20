@@ -3,107 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ethereal Flow</title>
+    <title>Radiant Kineticism</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #030305; }
-        canvas { display: block; filter: blur(0.5px); } /* Subtle softening */
-        #instruction {
-            position: absolute; bottom: 40px; width: 100%; text-align: center;
-            color: rgba(255, 255, 255, 0.2); font-family: sans-serif;
-            letter-spacing: 4px; font-size: 10px; text-transform: uppercase;
-            pointer-events: none; animation: pulse 4s infinite;
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; }
+        canvas { display: block; }
+        #ui {
+            position: absolute; top: 20px; left: 20px;
+            color: rgba(255, 255, 255, 0.3); font-family: 'Inter', sans-serif;
+            font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+            pointer-events: none;
         }
-        @keyframes pulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
-    <div id="instruction">Trace the void • Click to disrupt</div>
+    <div id="ui">Performance Mode: Active • Spectrum: High</div>
     <canvas id="canvas"></canvas>
 
     <script>
         const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { alpha: false }); // Optimization: Disable alpha for the main canvas
         let particles = [];
+        let spriteCanvas;
         const mouse = { x: -1000, y: -1000, active: false };
+        let hueCircle = 0;
 
-        function initCanvas() {
-            // HIGH-DPI FIX: Matches canvas internal pixels to physical screen pixels
+        // 1. CREATE A PRE-RENDERED SPRITE (The "Speed" Secret)
+        function createParticleSprite() {
+            spriteCanvas = document.createElement('canvas');
+            const sCtx = spriteCanvas.getContext('2d');
+            const size = 64;
+            spriteCanvas.width = size;
+            spriteCanvas.height = size;
+
+            const gradient = sCtx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+            sCtx.fillStyle = gradient;
+            sCtx.fillRect(0, 0, size, size);
+        }
+
+        function init() {
             const dpr = window.devicePixelRatio || 1;
             canvas.width = window.innerWidth * dpr;
             canvas.height = window.innerHeight * dpr;
-            canvas.style.width = `${window.innerWidth}px`;
-            canvas.style.height = `${window.innerHeight}px`;
             ctx.scale(dpr, dpr);
             
-            // Scalable density: More particles for bigger screens
-            const area = window.innerWidth * window.innerHeight;
-            const count = Math.floor(area / 6000); 
+            // High Density: 800+ particles without lag
+            const count = Math.min((window.innerWidth * window.innerHeight) / 1000, 1000);
             particles = Array.from({ length: count }, () => new Particle());
+            createParticleSprite();
         }
 
-        window.addEventListener('resize', initCanvas);
-        window.addEventListener('mousemove', (e) => { 
-            mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true; 
-        });
-        window.addEventListener('mousedown', () => particles.forEach(p => p.repel()));
-
         class Particle {
-            constructor() { this.reset(); }
+            constructor() {
+                this.reset();
+            }
             reset() {
                 this.x = Math.random() * window.innerWidth;
                 this.y = Math.random() * window.innerHeight;
-                this.vx = (Math.random() - 0.5) * 0.2;
-                this.vy = (Math.random() - 0.5) * 0.2;
-                this.size = Math.random() * 1.5 + 0.5;
-                this.hue = 200 + Math.random() * 60;
-            }
-            repel() {
-                const dx = this.x - mouse.x;
-                const dy = this.y - mouse.y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < 400) {
-                    this.vx += (dx / dist) * 15;
-                    this.vy += (dy / dist) * 15;
-                }
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.size = Math.random() * 15 + 5;
+                // Vibrance: Each particle gets a unique offset in the color wheel
+                this.hueOffset = Math.random() * 120; 
             }
             update() {
-                if (mouse.active) {
-                    const dx = mouse.x - this.x;
-                    const dy = mouse.y - this.y;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
-                    if (dist < 250) {
-                        this.vx += dx * 0.00015;
-                        this.vy += dy * 0.00015;
-                    }
-                }
-                this.x += this.vx; this.y += this.vy;
-                this.vx *= 0.96; this.vy *= 0.96; // Friction
+                const dx = mouse.x - this.x;
+                const dy = mouse.y - this.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
 
+                if (dist < 200 && mouse.active) {
+                    const force = (200 - dist) / 200;
+                    this.vx -= (dx / dist) * force * 0.5;
+                    this.vy -= (dy / dist) * force * 0.5;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+
+                // Bounce with energy loss
                 if (this.x < 0 || this.x > window.innerWidth) this.vx *= -1;
                 if (this.y < 0 || this.y > window.innerHeight) this.vy *= -1;
             }
             draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = `hsla(${this.hue}, 80%, 70%, 0.8)`;
-                ctx.fill();
+                const currentHue = (hueCircle + this.hueOffset) % 360;
+                ctx.globalAlpha = 0.6;
+                // Tint the pre-rendered sprite using 'source-atop' logic (simplified here)
+                ctx.filter = `hue-rotate(${currentHue}deg) saturate(200%)`;
+                ctx.drawImage(spriteCanvas, this.x - this.size/2, this.y - this.size/2, this.size, this.size);
+                ctx.filter = 'none';
             }
         }
 
         function animate() {
-            // Trail Effect: Don't clear fully, leave a ghost
-            ctx.fillStyle = 'rgba(3, 3, 5, 0.1)';
+            // Darker background for more "pop"
+            ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
             
-            // Visual Juice: Additive blending makes clusters look like bright stars
-            ctx.globalCompositeOperation = 'lighter';
-            particles.forEach(p => { p.update(); p.draw(); });
-            ctx.globalCompositeOperation = 'source-over';
-            
+            ctx.globalCompositeOperation = 'screen'; // Makes colors blend vibrantly
+            hueCircle += 0.5; // Slowly shift the whole universe's color
+
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
             requestAnimationFrame(animate);
         }
 
-        initCanvas();
+        window.addEventListener('resize', init);
+        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true; });
+        init();
         animate();
     </script>
 </body>
