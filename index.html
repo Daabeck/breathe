@@ -3,110 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radiant Kineticism</title>
+    <title>The Gravity of Stillness</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; }
-        canvas { display: block; }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #050508; /* Deep midnight */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        canvas {
+            display: block;
+        }
+
         #ui {
-            position: absolute; top: 20px; left: 20px;
-            color: rgba(255, 255, 255, 0.3); font-family: 'Inter', sans-serif;
-            font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 2px;
+            font-size: 12px;
+            text-transform: uppercase;
             pointer-events: none;
+            transition: opacity 1s;
+        }
+
+        .fade-out {
+            opacity: 0;
         }
     </style>
 </head>
 <body>
-    <div id="ui">Performance Mode: Active • Spectrum: High</div>
+
+    <div id="ui">Move to attract • Click to breathe</div>
     <canvas id="canvas"></canvas>
 
     <script>
         const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d', { alpha: false }); // Optimization: Disable alpha for the main canvas
+        const ctx = canvas.getContext('2d');
+        const ui = document.getElementById('ui');
+
         let particles = [];
-        let spriteCanvas;
-        const mouse = { x: -1000, y: -1000, active: false };
-        let hueCircle = 0;
+        const particleCount = 150;
+        const mouse = { x: -100, y: -100, active: false };
 
-        // 1. CREATE A PRE-RENDERED SPRITE (The "Speed" Secret)
-        function createParticleSprite() {
-            spriteCanvas = document.createElement('canvas');
-            const sCtx = spriteCanvas.getContext('2d');
-            const size = 64;
-            spriteCanvas.width = size;
-            spriteCanvas.height = size;
-
-            const gradient = sCtx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-            gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
-            gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)');
-            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-            sCtx.fillStyle = gradient;
-            sCtx.fillRect(0, 0, size, size);
+        window.addEventListener('resize', resize);
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         }
+        resize();
 
-        function init() {
-            const dpr = window.devicePixelRatio || 1;
-            canvas.width = window.innerWidth * dpr;
-            canvas.height = window.innerHeight * dpr;
-            ctx.scale(dpr, dpr);
-            
-            // High Density: 800+ particles without lag
-            const count = Math.min((window.innerWidth * window.innerHeight) / 1000, 1000);
-            particles = Array.from({ length: count }, () => new Particle());
-            createParticleSprite();
-        }
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            mouse.active = true;
+            ui.classList.add('fade-out');
+        });
+
+        window.addEventListener('mousedown', () => {
+            particles.forEach(p => p.pulse());
+        });
 
         class Particle {
             constructor() {
-                this.reset();
+                this.init();
             }
-            reset() {
-                this.x = Math.random() * window.innerWidth;
-                this.y = Math.random() * window.innerHeight;
-                this.vx = (Math.random() - 0.5) * 2;
-                this.vy = (Math.random() - 0.5) * 2;
-                this.size = Math.random() * 15 + 5;
-                // Vibrance: Each particle gets a unique offset in the color wheel
-                this.hueOffset = Math.random() * 120; 
+
+            init() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.radius = Math.random() * 2 + 0.5;
+                this.color = `hsla(${220 + Math.random() * 40}, 70%, 70%, ${Math.random() * 0.5 + 0.2})`;
+                this.originalRadius = this.radius;
             }
+
+            pulse() {
+                const dx = this.x - mouse.x;
+                const dy = this.y - mouse.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const force = 100 / (dist + 1);
+                this.vx += (dx / dist) * force;
+                this.vy += (dy / dist) * force;
+            }
+
             update() {
-                const dx = mouse.x - this.x;
-                const dy = mouse.y - this.y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-
-                if (dist < 200 && mouse.active) {
-                    const force = (200 - dist) / 200;
-                    this.vx -= (dx / dist) * force * 0.5;
-                    this.vy -= (dy / dist) * force * 0.5;
-                }
-
+                // Gentle drift
                 this.x += this.vx;
                 this.y += this.vy;
-                this.vx *= 0.99;
-                this.vy *= 0.99;
 
-                // Bounce with energy loss
-                if (this.x < 0 || this.x > window.innerWidth) this.vx *= -1;
-                if (this.y < 0 || this.y > window.innerHeight) this.vy *= -1;
+                // Interaction with mouse
+                if (mouse.active) {
+                    const dx = mouse.x - this.x;
+                    const dy = mouse.y - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 300) {
+                        const accel = 0.0002;
+                        this.vx += dx * accel;
+                        this.vy += dy * accel;
+                    }
+                }
+
+                // Friction
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+
+                // Wrap around edges
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
             }
+
             draw() {
-                const currentHue = (hueCircle + this.hueOffset) % 360;
-                ctx.globalAlpha = 0.6;
-                // Tint the pre-rendered sprite using 'source-atop' logic (simplified here)
-                ctx.filter = `hue-rotate(${currentHue}deg) saturate(200%)`;
-                ctx.drawImage(spriteCanvas, this.x - this.size/2, this.y - this.size/2, this.size, this.size);
-                ctx.filter = 'none';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+            }
+        }
+
+        function setup() {
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
             }
         }
 
         function animate() {
-            // Darker background for more "pop"
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
-            
-            ctx.globalCompositeOperation = 'screen'; // Makes colors blend vibrantly
-            hueCircle += 0.5; // Slowly shift the whole universe's color
+            // Slight trail effect
+            ctx.fillStyle = 'rgba(5, 5, 8, 0.15)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             particles.forEach(p => {
                 p.update();
@@ -116,9 +151,7 @@
             requestAnimationFrame(animate);
         }
 
-        window.addEventListener('resize', init);
-        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true; });
-        init();
+        setup();
         animate();
     </script>
 </body>
