@@ -3,154 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>( b r e a t h e )</title>
+    <title>Ethereal Flow</title>
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #050508; /* Deep midnight */
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #030305; }
+        canvas { display: block; filter: blur(0.5px); } /* Subtle softening */
+        #instruction {
+            position: absolute; bottom: 40px; width: 100%; text-align: center;
+            color: rgba(255, 255, 255, 0.2); font-family: sans-serif;
+            letter-spacing: 4px; font-size: 10px; text-transform: uppercase;
+            pointer-events: none; animation: pulse 4s infinite;
         }
-
-        canvas {
-            display: block;
-        }
-
-        #ui {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: rgba(255, 255, 255, 0.4);
-            letter-spacing: 2px;
-            font-size: 12px;
-            text-transform: uppercase;
-            pointer-events: none;
-            transition: opacity 1s;
-        }
-
-        .fade-out {
-            opacity: 0;
-        }
+        @keyframes pulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
-
+    <div id="instruction">Trace the void • Click to disrupt</div>
     <canvas id="canvas"></canvas>
 
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        const ui = document.getElementById('ui');
-
         let particles = [];
-        const particleCount = 150;
-        const mouse = { x: -100, y: -100, active: false };
+        const mouse = { x: -1000, y: -1000, active: false };
 
-        window.addEventListener('resize', resize);
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        function initCanvas() {
+            // HIGH-DPI FIX: Matches canvas internal pixels to physical screen pixels
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            canvas.style.width = `${window.innerWidth}px`;
+            canvas.style.height = `${window.innerHeight}px`;
+            ctx.scale(dpr, dpr);
+            
+            // Scalable density: More particles for bigger screens
+            const area = window.innerWidth * window.innerHeight;
+            const count = Math.floor(area / 6000); 
+            particles = Array.from({ length: count }, () => new Particle());
         }
-        resize();
 
-        window.addEventListener('mousemove', (e) => {
-            mouse.x = e.clientX;
-            mouse.y = e.clientY;
-            mouse.active = true;
-            ui.classList.add('fade-out');
+        window.addEventListener('resize', initCanvas);
+        window.addEventListener('mousemove', (e) => { 
+            mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true; 
         });
-
-        window.addEventListener('mousedown', () => {
-            particles.forEach(p => p.pulse());
-        });
+        window.addEventListener('mousedown', () => particles.forEach(p => p.repel()));
 
         class Particle {
-            constructor() {
-                this.init();
+            constructor() { this.reset(); }
+            reset() {
+                this.x = Math.random() * window.innerWidth;
+                this.y = Math.random() * window.innerHeight;
+                this.vx = (Math.random() - 0.5) * 0.2;
+                this.vy = (Math.random() - 0.5) * 0.2;
+                this.size = Math.random() * 1.5 + 0.5;
+                this.hue = 200 + Math.random() * 60;
             }
-
-            init() {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() * canvas.height;
-                this.vx = (Math.random() - 0.5) * 0.5;
-                this.vy = (Math.random() - 0.5) * 0.5;
-                this.radius = Math.random() * 2 + 0.5;
-                this.color = `hsla(${220 + Math.random() * 40}, 70%, 70%, ${Math.random() * 0.5 + 0.2})`;
-                this.originalRadius = this.radius;
-            }
-
-            pulse() {
+            repel() {
                 const dx = this.x - mouse.x;
                 const dy = this.y - mouse.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                const force = 100 / (dist + 1);
-                this.vx += (dx / dist) * force;
-                this.vy += (dy / dist) * force;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 400) {
+                    this.vx += (dx / dist) * 15;
+                    this.vy += (dy / dist) * 15;
+                }
             }
-
             update() {
-                // Gentle drift
-                this.x += this.vx;
-                this.y += this.vy;
-
-                // Interaction with mouse
                 if (mouse.active) {
                     const dx = mouse.x - this.x;
                     const dy = mouse.y - this.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance < 300) {
-                        const accel = 0.0002;
-                        this.vx += dx * accel;
-                        this.vy += dy * accel;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 250) {
+                        this.vx += dx * 0.00015;
+                        this.vy += dy * 0.00015;
                     }
                 }
+                this.x += this.vx; this.y += this.vy;
+                this.vx *= 0.96; this.vy *= 0.96; // Friction
 
-                // Friction
-                this.vx *= 0.98;
-                this.vy *= 0.98;
-
-                // Wrap around edges
-                if (this.x < 0) this.x = canvas.width;
-                if (this.x > canvas.width) this.x = 0;
-                if (this.y < 0) this.y = canvas.height;
-                if (this.y > canvas.height) this.y = 0;
+                if (this.x < 0 || this.x > window.innerWidth) this.vx *= -1;
+                if (this.y < 0 || this.y > window.innerHeight) this.vy *= -1;
             }
-
             draw() {
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = this.color;
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${this.hue}, 80%, 70%, 0.8)`;
                 ctx.fill();
             }
         }
 
-        function setup() {
-            for (let i = 0; i < particleCount; i++) {
-                particles.push(new Particle());
-            }
-        }
-
         function animate() {
-            // Slight trail effect
-            ctx.fillStyle = 'rgba(5, 5, 8, 0.15)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            particles.forEach(p => {
-                p.update();
-                p.draw();
-            });
-
+            // Trail Effect: Don't clear fully, leave a ghost
+            ctx.fillStyle = 'rgba(3, 3, 5, 0.1)';
+            ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+            
+            // Visual Juice: Additive blending makes clusters look like bright stars
+            ctx.globalCompositeOperation = 'lighter';
+            particles.forEach(p => { p.update(); p.draw(); });
+            ctx.globalCompositeOperation = 'source-over';
+            
             requestAnimationFrame(animate);
         }
 
-        setup();
+        initCanvas();
         animate();
     </script>
 </body>
